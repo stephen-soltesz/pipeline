@@ -1,50 +1,53 @@
 #!/usr/bin/env python
 
+from datetime import datetime
+import gflags
 import logging
-import socket
+import matplotlib
+# set pylab backend *before* importing pylab
+matplotlib.use("tkagg")
+import pylab
 import sys
 import threading
 import time
 import SocketServer
 
-import gflags
-FLAGS = gflags.FLAGS
 
 DEFAULT_WIDTH=100
 DEFAULT_HEIGHT=100
-gflags.DEFINE_integer("sample_width", DEFAULT_WIDTH, 
-                      "Default number of samples to show in plot.", short_name='w')
-
-# remove old version of numpy from path
-import matplotlib
-matplotlib.use("tkagg")
-
-import pylab
-from pylab import *
-from datetime import datetime
-
+HOST = "localhost"
+PORT = 3131
 stream_data = {}
 update_axis=True
+
+FLAGS = gflags.FLAGS
+gflags.DEFINE_integer("sample_width", DEFAULT_WIDTH,
+    "Default number of samples to show in plot.",
+    short_name='w')
+gflags.DEFINE_integer("port", PORT,
+    "Default port to listen.", short_name='p')
+gflags.DEFINE_string("hostname", HOST,
+    "Default port to listen.", short_name='h')
+
 
 def usage():
   return "TODO: add usage()"
 
 def parse_args():
-    try:
-        FLAGS(sys.argv)
-    except gflags.FlagsError, err:
-        print usage()
-        print '%s\nUsage: %s ARGS\n%s' % (err, sys.argv[0], FLAGS)
-        sys.exit(1)
+  try:
+    FLAGS(sys.argv)
+  except gflags.FlagsError, err:
+    print usage()
+    print '%s\nUsage: %s ARGS\n%s' % (err, sys.argv[0], FLAGS)
+    sys.exit(1)
 
 #if len(sys.argv) == 1:
 #        print usage()
 #        print 'Usage: %s ARGS\n%s' % (sys.argv[0], FLAGS)
 #        sys.exit(1)
 
-    logging.basicConfig(format = '[%(asctime)s] %(levelname)s: %(message)s',
-                        level = logging.INFO)
-
+  logging.basicConfig(format = '[%(asctime)s] %(levelname)s: %(message)s',
+      level = logging.INFO)
 
 
 def TS():
@@ -58,7 +61,7 @@ def get_threadname():
 
 def update_legend(axes):
   leg = axes.legend(bbox_to_anchor=(0., 0.91, 1., .09),
-                    loc=1, borderaxespad=0.)
+      loc=1, borderaxespad=0.)
   for t in leg.get_texts():
     t.set_fontsize('small')
 
@@ -69,12 +72,12 @@ class ThreadedTCPRequestHandler(SocketServer.StreamRequestHandler):
   def handle(self):
     global stream_data
 
-    cur_name = get_threadname()
     x_array = pylab.arange(0,100,1)
     y_array = pylab.array([0]*100)
     # assumed p.ax already exists.
     extra_args = {}
-    extra_args['label'] = cur_name
+    thread_name = get_threadname()
+    extra_args['label'] = thread_name
 
     while True:
       data = self.rfile.readline().strip()
@@ -85,36 +88,42 @@ class ThreadedTCPRequestHandler(SocketServer.StreamRequestHandler):
         break
 
       try:
-          extra_args[fields[0]] = float(fields[1])
+        extra_args[fields[0]] = float(fields[1])
       except:
-          extra_args[fields[0]] = fields[1]
+        extra_args[fields[0]] = fields[1]
 
     line, = self.server.axes.plot(x_array, y_array, '-', **extra_args)
-    update_legend(self.server.axes)
 
-    if cur_name not in stream_data:
-      # TODO: get name from client
-      stream_data[cur_name] = {'x': [], 'y': [], 'line': line, 'last_len': 0}
+    # 'lable' may have been reset by client
+    line_name = extra_args['label']
+    if line_name not in stream_data:
+      update_legend(self.server.axes)
+    else:
+      # preserve old line data with a new name
+      stream_data[line_name+"_old"] = stream_data[line_name]
 
+    # always start with no data for the new line
+    stream_data[line_name] = {'x': [], 'y': [], 'line': line, 'last_len': 0}
 
     while True:
       data = self.rfile.readline().strip()
       if data == "": break
 
-      print "[%s-%s] %s: %s" % (cur_name, self.client_address[0], TS(),
+      print "[%s-%s] %s: %s" % (thread_name, self.client_address[0], TS(),
           float(data))
 
       x = float(time.time())
       y = float(data)
 
-      stream_data[cur_name]['x'].append(x)
-      stream_data[cur_name]['y'].append(y)
+      stream_data[line_name]['x'].append(x)
+      stream_data[line_name]['y'].append(y)
 
       #self.wfile.write(".\n")
 
-    print cur_name, ": EXITING"
+    print thread_name, ": EXITING"
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+  """Custom TCP Server with daemon threads and allow_reuse_address enabled."""
   # let ctrl-c to main thread cleans up all threads.
   daemon_threads = True
   # let rebinding to listening port more quickly
@@ -162,9 +171,9 @@ def pylab_setup(figure):
     FLAGS.sample_width = DEFAULT_WIDTH * new_ratio / default_ratio
     print "AFTER: ", FLAGS.sample_width
 
-  cid = figure.canvas.mpl_connect('key_press_event', on_key)
-  cid = figure.canvas.mpl_connect('resize_event', unpause_axis)
-  cid = figure.canvas.mpl_connect('scroll_event', pause_axis)
+  figure.canvas.mpl_connect('key_press_event', on_key)
+  figure.canvas.mpl_connect('resize_event', unpause_axis)
+  figure.canvas.mpl_connect('scroll_event', pause_axis)
 
   timer = figure.canvas.new_timer(interval=200)
   timer.add_callback(plot_refresh, ())
@@ -178,13 +187,11 @@ def plot_refresh(unused_a):
   global p
   try:
     plot_refresh_handler(unused_a)
-  except KeyboardInterrupt as e:
-    print "ctrl-c"
+  except KeyboardInterrupt as err:
+    print "ctrl-c", err
     sys.exit(1)
   except:
     raise
-
-  return
 
 
 ax_min = sys.maxint
@@ -196,8 +203,8 @@ ay_max = 0
 def plot_refresh_handler(unused_a):
   global ax_min, ax_max, ay_min, ay_max, update_axis
 
-  for thread_name in stream_data:
-    data = stream_data[thread_name]
+  for line_name in stream_data:
+    data = stream_data[line_name]
     curr_data_len = len(data['y'])
     if curr_data_len == 0:
       # no data yet
@@ -208,12 +215,9 @@ def plot_refresh_handler(unused_a):
       continue
 
     data['last_len'] = curr_data_len
-    print "drawing ", thread_name
+    print "drawing ", line_name
     print "len x:", data['last_len']
 
-    #x = pylab.array(data['x'][-100:])
-    #x_len = len(x)
-    #y = pylab.array(data['y'][-max(100,x_len):])
     x = pylab.array(data['x'])
     y = pylab.array(data['y'])
 
@@ -227,10 +231,8 @@ def plot_refresh_handler(unused_a):
     data['line'].set_data(x,y)
     if update_axis:
       ax = data['line'].get_axes()
-      ax.axis([ax_min-1,
-               ax_max+1,
-               ay_min-1,
-               ay_max+1])
+      ax.axis([ax_min-1, ax_max+1,
+               ay_min-1, ay_max+1])
     else:
       print "skipping axis update"
 
@@ -241,21 +243,18 @@ def initialize_server(server):
   server.serve_forever()
 
 if __name__ == "__main__":
-  HOST, PORT = "localhost", 3131
-
   parse_args()
 
-  server = ThreadedTCPServer((HOST, PORT), ThreadedTCPRequestHandler)
+  server = ThreadedTCPServer((FLAGS.hostname, FLAGS.port), ThreadedTCPRequestHandler)
   server.Setup()
 
   server_thread = threading.Thread(target=initialize_server, args=(server,))
   server_thread.setDaemon(True)
-
   server_thread.start()
 
   # pylab_setup blocks on pylab.show()
   pylab_setup(server.figure)
 
-  print "after server"
+  logging.info("Shutdown server")
   server.shutdown()
 
