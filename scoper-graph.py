@@ -6,12 +6,13 @@ import gflags
 import logging
 import matplotlib
 # set pylab backend *before* importing pylab
-matplotlib.use("tkagg")
+#matplotlib.use("tkagg")
+matplotlib.use("webagg")  # displays in browser, can be viewed by others.
 import pylab
+import SocketServer
 import sys
 import threading
 import time
-import SocketServer
 
 
 DEFAULT_WIDTH = 200
@@ -19,6 +20,7 @@ HOST = "localhost"
 PORT = 3131
 UPDATE_AXIS = True
 LIMITS = None
+EXIT_GRAPH = False
 
 FLAGS = gflags.FLAGS
 gflags.DEFINE_integer("width", DEFAULT_WIDTH,
@@ -112,6 +114,19 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
       self.server.axes[name].legend([])  # TODO: find a better way.
     stream_data = {}
 
+  def _find_uniq_preserve_order(self, labels, orig_values=None):
+     """remove duplicate lables while preserving order. optionally values"""
+     seen = {}
+     result = []
+     values = []
+     for i, item in enumerate(labels):
+         if item in seen: continue
+         seen[item] = 1
+         result.append(item)
+         if orig_values:
+           values.append(orig_values[i])
+     return result, values
+
   def _handle_update_legend(self, single_axes):
     """Updates the legend for single_axes, listing duplicate labels once."""
     # lines are bundled with an axes.
@@ -120,12 +135,10 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
     # for each current line, get label, get axes
     # for unique axes-labels create a list to pass to legend()
     artists, labels = single_axes.get_legend_handles_labels()
-    legend_list = {}
-    for i, label in enumerate(labels):
-      legend_list[label] = artists[i]
-
-    leg = single_axes.legend(legend_list.values(), legend_list.keys(),
-          bbox_to_anchor=(0., 0.91, 1., .09), loc=1, borderaxespad=0.)
+    uniq_labels, uniq_artists = self._find_uniq_preserve_order(labels, artists)
+    leg = single_axes.legend(uniq_artists, uniq_labels,
+        bbox_to_anchor=(0., 0.91, 1., .09),
+        loc=2, borderaxespad=0.)
     for text in leg.get_texts():
       text.set_fontsize('small')
 
@@ -170,16 +183,21 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
 
   def _handle_client_init(self, style_args, axis_args):
     """Read client initialization: axes, style, or reset commands."""
+    global EXIT_GRAPH
     while True:
       data = self.rfile.readline().strip()
       if data == "":
         return
 
       fields = data.split(":")
+      if "EXIT" in fields:
+        EXIT_GRAPH = True
+        return "RETURN"
+
       if "RESET" in fields:
         self._handle_reset()
         # NOTE: reset does nothing else, so return/exit from thread
-        return "RESET"
+        return "RETURN"
 
       if "AXIS" in fields:
         axis_fields = fields[1].split(",")
@@ -237,13 +255,13 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
 
     # client_init blocks until client sends 'BEGIN'
     status = self._handle_client_init(style_args, axis_args)
-    if status == "RESET":
+    if status == "RETURN":
       # done with client
       return
 
     self._handle_setup_axis(axis_args)
 
-    print "Creating:", axis_args['name']
+    print "Assigning to axis:", axis_args['name']
     axes = self.server.axes[axis_args['name']]
     line_name = self._handle_create_line(axes, style_args)
     self._handle_update_legend(axes)
@@ -304,7 +322,7 @@ def pylab_setup(figure, stream_data):
   figure.canvas.mpl_connect('resize_event', unpause_axis)
   figure.canvas.mpl_connect('scroll_event', pause_axis)
 
-  timer = figure.canvas.new_timer(interval=200)
+  timer = figure.canvas.new_timer(interval=500)
   timer.add_callback(plot_refresh_handler, (stream_data))
   timer.start()
   print "SHOW"
@@ -323,6 +341,10 @@ class Limits(object):
 
 def plot_refresh_handler(stream_data):
   """Timer callback for redrawing plots with latest data."""
+  global EXIT_GRAPH
+
+  if EXIT_GRAPH:
+    sys.exit(1)
 
   for line_name in stream_data:
     data = stream_data[line_name]

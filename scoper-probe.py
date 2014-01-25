@@ -24,6 +24,7 @@ gflags.DEFINE_string("axis_ylabel", "Value", "Use a specific axis name.", short_
 gflags.DEFINE_string("axis_xlabel", "Samples", "Use a specific axis name.", short_name='x')
 gflags.DEFINE_string("color", None, "Send specific color to scoper for this line", short_name='C')
 gflags.DEFINE_string("style", None, "Send specific style hints to scoper", short_name='s')
+gflags.DEFINE_bool("verbose", False, "Print additional status information", short_name='v')
 gflags.DEFINE_string("command", None,
                      ("Rather than read from stdin, "
                       "use output from given command."),
@@ -35,6 +36,7 @@ gflags.DEFINE_integer("pivot", None,
      "a fixed size window for comparing new graphs with long-running graphs."),
     short_name='P')
 gflags.DEFINE_bool("reset", False, "Send 'RESET' command to grapher.", short_name='r')
+gflags.DEFINE_bool("exit", False, "Send 'EXIT' command to grapher.", short_name='e')
 gflags.DEFINE_float("interval", 1, "Delay in milliseconds between running command.",
     lower_bound=0.0, short_name='i')
 gflags.MarkFlagAsRequired('hostname')
@@ -105,8 +107,12 @@ def parse_args():
     print 'Usage: %s ARGS\n%s' % (sys.argv[0], FLAGS)
     sys.exit(1)
 
-  logging.basicConfig(format = '[%(asctime)s] %(levelname)s: %(message)s',
-                      level = logging.INFO)
+  if FLAGS.verbose:
+    log_level = logging.DEBUG
+  else:
+    log_level = logging.INFO
+  logging.basicConfig(format='[%(asctime)s] %(levelname)s: %(message)s',
+                      level=log_level)
 
 
 def connect_to_grapher():
@@ -121,6 +127,10 @@ def connect_to_grapher():
   if FLAGS.reset:
     client.wfile.write("RESET\n")
     sys.exit(0)
+  if FLAGS.exit:
+    client.wfile.write("EXIT\n")
+    sys.exit(0)
+
   client.wfile.write("AXIS:%s,%s,%s\n" % (FLAGS.axis, FLAGS.axis_xlabel,
                                           FLAGS.axis_ylabel))
   if FLAGS.color:
@@ -147,7 +157,7 @@ def main():
       cmd = FLAGS.command.format(i=count)
       value = os.popen(cmd, 'r').read()
       client.wfile.write(value)
-      logging.info("Send to %s:%s '%s'", FLAGS.hostname,
+      logging.debug("Send to %s:%s '%s'", FLAGS.hostname,
                    FLAGS.port, value.strip())
       # wait before re-running command
       time.sleep(FLAGS.interval)
