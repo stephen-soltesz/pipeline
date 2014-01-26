@@ -32,7 +32,6 @@ Usage:
 """
 
 import errno
-import os
 import socket
 import subprocess
 import sys
