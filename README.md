@@ -33,8 +33,9 @@ First, start the server:
 
     ./scopeview.py --timestamp
 
-Please note that the scopeprobe commands expect scripts `sysctl.py` and
-`cpu.py` which return a single floating point value and exit.
+Next run a scopeprobe for each line. Please note that the scopeprobe commands
+expect scripts `sysctl.py` and `cpu.py` which return a single floating point
+value and exit.
 
     LAB=("1" "5" "15")
     for i in 0 1 2 ; do 
@@ -44,8 +45,8 @@ Please note that the scopeprobe commands expect scripts `sysctl.py` and
       sleep 10
     done
 
-The interval is very small because cpu.py takes 1 second to determine current
-load.
+Finally, the interval here is zero because cpu.py takes 1 second to determine
+current load.
 
     LAB=("sys" "user")
     for i in 0 1 ; do 
