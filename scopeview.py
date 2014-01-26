@@ -1,5 +1,37 @@
 #!/usr/bin/env python
-"""scoper-graph is a server that plots data sent from clients"""
+"""
+Summary:
+  scopeview.py is a simple server that accepts client connections and plots
+  client data in real time using pylab for display.
+  
+  By default, each scopeprobe client creates a separate line.
+
+  The client protocol is simple and documented in the protocol spec. The
+  simplest client would connect to the server and write strings:
+    BEGIN\\n
+    <float1>\\n
+    <float2>\\n
+  Where float1 and float2 are strings that will convert using float().
+
+Usage - default:
+  Start scopeview.py with no arguments for default options.
+
+Usage - plot with timestamps:
+  By default, the sequence order of values received by the server defines a
+  value's x-coordinate. With the --timestamp option, the server associates a
+  timestamp with each received value. The timestamp serves as the x-coordinate.
+
+    ./scopeview.py --timestamp
+
+Usage - multiple axes:
+  By default a single axis is used for all lines.  You may specify multiple
+  additional axes with the '--axis <name>' option to scopeprobe.py:
+
+    ./scopeprobe.py --axix <name> [args]
+
+Usage:
+  scopeview.py [flags]
+"""
 
 from datetime import datetime
 import gflags
@@ -47,27 +79,6 @@ gflags.DEFINE_string("hostname", HOST,
 # TODO: export/save current data to text file, or send it to the client?
 #       and, allow something like a 'replay'/redisplay feature?
 
-def usage():
-  return """
-Summary:
-
-  scoper-graph.py is a simple server that accepts client connections and plots
-  client data in real time using pylab for display. Each client is a separate
-  line by default.
-
-  The client protocol is basic. The simplest client would connect to the server
-  and write:
-    BEGIN\\n
-    <float1>\\n
-    <float2>\\n
-  Where float1 and float2 are strings that will convert cleanly to float().
-
-Features:
-  time-based plots --
-  multiple axes --
-  log-scale y-axis --
-  fixed y-axis scale --
-  """
 
 
 def parse_args():
