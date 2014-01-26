@@ -9,14 +9,14 @@ and display data. Multiple scopeprobe clients can connect to a single server.
 
 `scopeview.py` 
 
-  Scopeview is a threaded display server. It supports a simple, text-based
+* Scopeview is a threaded display server. It supports a simple, text-based
   protocol, implemented by scopeprobe.
 
   See: `scopeview.py --helpshort` for more detailed usage notes.
 
 `scopeprobe.py`
 
-  Scopeprobe is a command line client that sends values to the scopeview
+* Scopeprobe is a command line client that sends values to the scopeview
   server. By default, scopeprobe reads from stdin.  However, scopeprobe can
   also run a command and read the command output instead.
 
