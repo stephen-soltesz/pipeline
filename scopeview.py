@@ -56,7 +56,7 @@ FLAGS = gflags.FLAGS
 gflags.DEFINE_integer("width", DEFAULT_WIDTH,
     "Default number of samples to show in plot.",
     short_name='w')
-gflags.DEFINE_bool("with_timestamp", False,
+gflags.DEFINE_bool("timestamp", False,
     "Plot points with current timestamp on x-axis.",
     short_name='t')
 gflags.DEFINE_bool("logy", False,
@@ -87,7 +87,6 @@ def parse_args():
     FLAGS(sys.argv)
   except gflags.FlagsError as err:
     print err
-    print usage()
     print '%s\nUsage: %s ARGS\n%s' % (err, sys.argv[0], FLAGS)
     sys.exit(1)
 
@@ -164,7 +163,7 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
       stream_data[line_name+"_old_"+timestamp()] = stream_data[line_name]
     # always start with no data for the new line
     stream_data[line_name] = {'y': [], 'line': line, 'last_len': 0}
-    if FLAGS.with_timestamp:
+    if FLAGS.timestamp:
       stream_data[line_name]['x'] = []
     return line_name
 
@@ -180,7 +179,7 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
       #print "[%s-%s] %s: %s" % (thread_name, self.client_address[0],
       #    timestamp(), float(data))
 
-      if FLAGS.with_timestamp:
+      if FLAGS.timestamp:
         x_val = float(time.time())
         stream_data[line_name]['x'].append(x_val)
 
@@ -377,7 +376,7 @@ def plot_refresh_handler(args):
     # save length of last line draw
     data['last_len'] = curr_data_len
 
-    if FLAGS.with_timestamp:
+    if FLAGS.timestamp:
       x_data = numpy.array(data['x'])
     else:
       x_data = numpy.array(range(curr_data_len))
