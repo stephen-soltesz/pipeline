@@ -34,6 +34,7 @@ Usage:
 import errno
 import os
 import socket
+import subprocess
 import sys
 import time
 import logging
@@ -177,10 +178,11 @@ def main():
 
     if FLAGS.command:
       cmd = FLAGS.command.format(i=count)
-      value = os.popen(cmd, 'r').read()
+      (value,_) = subprocess.Popen(cmd, shell=True,
+                                   stdout=subprocess.PIPE).communicate()
       client.wfile.write(value)
       logging.debug("Send to %s:%s '%s'", FLAGS.hostname,
-                   FLAGS.port, value.strip())
+                    FLAGS.port, value.strip())
       # wait before re-running command
       time.sleep(FLAGS.interval)
     else:
