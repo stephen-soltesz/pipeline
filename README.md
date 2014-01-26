@@ -45,16 +45,13 @@ value and exit.
       sleep 10
     done
 
-Finally, the interval here is zero because cpu.py takes 1 second to determine
-current load.
+Finally, read cpu load from stdin and add to a new axis named "cpu_pct".
 
     LAB=("sys" "user")
     for i in 0 1 ; do 
-      ./scopeprobe.py --axis_ylabel "% Load" \
+      ./cpu.py ${LAB[$i]} | ./scopeprobe.py --axis_ylabel "% Load" \
           --label ${LAB[$i]} \
-          --axis cpu_pct \
-          --command "./cpu.py ${LAB[$i]}" \
-          --interval 0.0 &
+          --axis cpu_pct &
       sleep 1
     done
 
