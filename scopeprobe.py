@@ -142,6 +142,8 @@ def connect_to_grapher():
     print error
     if error.errno == errno.ECONNREFUSED:
       print "Is the server running at (%s,%s)?" % (FLAGS.hostname, FLAGS.port)
+      print "To see usage information use:"
+      print "  %s --helpshort" % sys.argv[0]
     sys.exit(1)
 
   if FLAGS.reset:
