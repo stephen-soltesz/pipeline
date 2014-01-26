@@ -21,3 +21,4 @@ and display data. Multiple scopeprobe clients can connect to a single server.
   also run a command and read the command output instead.
 
   See: `scopeprobe.py --helpshort` for more detailed usage notes.
+
