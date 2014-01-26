@@ -27,6 +27,12 @@ Example
 
 ![Example Pylabscope](https://raw.github.com/stephen-soltesz/pylabscope/master/example.png)
 
+![Example Pylabscope2](../blob/master/example.png?raw=true)
+
+![Example Pylabscope3](https://github.com/stephen-soltesz/pylabscope/raw/master/example.png)
+
+![Example Pylabscope4](https://github.com/stephen-soltesz/pylabscope/raw/master/example.png?raw=true)
+
 The above example was created using commands like those below.
 
 First, start the server:
