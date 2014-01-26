@@ -8,6 +8,7 @@ import matplotlib
 # set pylab backend *before* importing pylab
 #matplotlib.use("tkagg")
 matplotlib.use("webagg")  # displays in browser, can be viewed by others.
+import numpy
 import pylab
 import SocketServer
 import sys
@@ -18,9 +19,6 @@ import time
 DEFAULT_WIDTH = 200
 HOST = "localhost"
 PORT = 3131
-UPDATE_AXIS = True
-LIMITS = None
-EXIT_GRAPH = False
 
 FLAGS = gflags.FLAGS
 gflags.DEFINE_integer("width", DEFAULT_WIDTH,
@@ -69,13 +67,11 @@ Features:
   multiple axes --
   log-scale y-axis --
   fixed y-axis scale --
-
   """
 
 
 def parse_args():
   """invokes gflags.FLAGS() on sys.argv."""
-  global DEFAULT_WIDTH
   try:
     FLAGS(sys.argv)
   except gflags.FlagsError as err:
@@ -83,8 +79,6 @@ def parse_args():
     print usage()
     print '%s\nUsage: %s ARGS\n%s' % (err, sys.argv[0], FLAGS)
     sys.exit(1)
-
-  DEFAULT_WIDTH = FLAGS.width
 
   logging.basicConfig(format = '[%(asctime)s] %(levelname)s: %(message)s',
       level = logging.INFO)
@@ -101,6 +95,21 @@ def get_threadname():
   return cur_thread.name
 
 
+def find_uniq_preserve_order(orig_keys, orig_values=None):
+  """remove duplicate keys while preserving order. optionally return values."""
+  seen = {}
+  keys = []
+  values = []
+  for i, item in enumerate(orig_keys):
+    if item in seen:
+      continue
+    seen[item] = 1
+    keys.append(item)
+    if orig_values:
+      values.append(orig_values[i])
+  return keys, values
+
+
 class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
   """Client handler to receive data for display."""
 
@@ -114,19 +123,6 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
       self.server.axes[name].legend([])  # TODO: find a better way.
     stream_data = {}
 
-  def _find_uniq_preserve_order(self, labels, orig_values=None):
-     """remove duplicate lables while preserving order. optionally values"""
-     seen = {}
-     result = []
-     values = []
-     for i, item in enumerate(labels):
-         if item in seen: continue
-         seen[item] = 1
-         result.append(item)
-         if orig_values:
-           values.append(orig_values[i])
-     return result, values
-
   def _handle_update_legend(self, single_axes):
     """Updates the legend for single_axes, listing duplicate labels once."""
     # lines are bundled with an axes.
@@ -135,7 +131,7 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
     # for each current line, get label, get axes
     # for unique axes-labels create a list to pass to legend()
     artists, labels = single_axes.get_legend_handles_labels()
-    uniq_labels, uniq_artists = self._find_uniq_preserve_order(labels, artists)
+    uniq_labels, uniq_artists = find_uniq_preserve_order(labels, artists)
     leg = single_axes.legend(uniq_artists, uniq_labels,
         bbox_to_anchor=(0., 0.91, 1., .09),
         loc=2, borderaxespad=0.)
@@ -146,8 +142,8 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
     """creates a line on the given axes using style_args. returns line_name"""
     stream_data = self.server.stream_data
     # sample data for initial create
-    x_data = pylab.arange(0, 2, 1)
-    y_data = pylab.array([0]*2)
+    x_data = numpy.arange(0, 2, 1)
+    y_data = numpy.array([0]*2)
 
     line, = axes.plot(x_data, y_data, '-', **style_args)
     # NOTE: client may set 'label'
@@ -183,7 +179,6 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
 
   def _handle_client_init(self, style_args, axis_args):
     """Read client initialization: axes, style, or reset commands."""
-    global EXIT_GRAPH
     while True:
       data = self.rfile.readline().strip()
       if data == "":
@@ -191,7 +186,7 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
 
       fields = data.split(":")
       if "EXIT" in fields:
-        EXIT_GRAPH = True
+        self.server.flags.exit = True
         return "RETURN"
 
       if "RESET" in fields:
@@ -226,7 +221,8 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
     if axis_name not in [name for name, _ in axes_dict.items()]:
       print "Adding a new axis:", axis_name
       axis_count = len(axes_dict)
-      axes_dict[axis_name] = self.server.figure.add_subplot(axis_count+1, 1, axis_count+1)
+      newaxis = self.server.figure.add_subplot(axis_count+1, 1, axis_count+1)
+      axes_dict[axis_name] = newaxis
       axes_dict[axis_name].grid(True)
       axes_dict[axis_name].set_xlabel(axis_args['x_label'])
       axes_dict[axis_name].set_ylabel(axis_args['y_label'])
@@ -271,51 +267,55 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
     print "Exiting:", thread_name
 
 
-class ScoperThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class ScoperThreadedTCPServer(SocketServer.ThreadingMixIn,
+                              SocketServer.TCPServer):
   """Custom TCP Server with daemon threads and allow_reuse_address enabled."""
   # let ctrl-c to main thread cleans up all threads.
   daemon_threads = True
   # let rebinding to listening port more quickly
   allow_reuse_address = True
 
-  def setup(self):
+  def setup(self, flags):
     """create instance data for figure, axes, and stream data."""
     self.figure = pylab.figure(1)
     self.axes = {}
     self.stream_data = {}
+    self.flags = flags
 
 
 # TODO: clean up the event handling examples here.
-def pylab_setup(figure, stream_data):
+def pylab_setup(figure, stream_data, original_width, runlimits, runflags):
   """setup callbacks, calls pylab.show() which blocks until close or exit."""
 
   def on_key(event):
+    """on_key"""
     print('you pressed', event.key, event.xdata, event.ydata)
 
-  def diag_event(event):
-    print event.name
-    if hasattr(event, 'height'):
-      print event.height, event.width
-    print event.name, event.canvas, event.guiEvent
+  #def diag_event(event):
+  #  """diag_event"""
+  #  print event.name
+  #  if hasattr(event, 'height'):
+  #    print event.height, event.width
+  #  print event.name, event.canvas, event.guiEvent
 
-  def pause_axis(event):
+  def pause_axis(unused_event):
+    """pause_axis"""
     # stops update of axis when updating lines
     # allows smooth scrolling by user
-    global UPDATE_AXIS
     print "PAUSE pause axis"
-    UPDATE_AXIS = False
+    runflags.update_axis = False
 
   def unpause_axis(event):
+    """unpause_axis"""
     # continues updating scrolling
-    global UPDATE_AXIS
     print "RESUME axis"
-    UPDATE_AXIS = True
+    runflags.update_axis = True
     if hasattr(event, 'height'):
       print event.height, event.width
     new_ratio = float(event.width)/float(event.height)
     default_ratio = 1.3
     print "BEFORE: ", FLAGS.width
-    FLAGS.width = DEFAULT_WIDTH * new_ratio / default_ratio
+    FLAGS.width = original_width * new_ratio / default_ratio
     print "AFTER: ", FLAGS.width
 
   figure.canvas.mpl_connect('key_press_event', on_key)
@@ -323,11 +323,18 @@ def pylab_setup(figure, stream_data):
   figure.canvas.mpl_connect('scroll_event', pause_axis)
 
   timer = figure.canvas.new_timer(interval=500)
-  timer.add_callback(plot_refresh_handler, (stream_data))
+  timer.add_callback(plot_refresh_handler, (stream_data, runlimits, runflags))
   timer.start()
   print "SHOW"
   pylab.show()
   print "AFTER"
+
+
+class Flags(object):
+  """Flags shared across threads."""
+  def __init__(self):
+    self.exit = False
+    self.update_axis = True
 
 
 class Limits(object):
@@ -339,11 +346,10 @@ class Limits(object):
     self.y_max = 0
 
 
-def plot_refresh_handler(stream_data):
+def plot_refresh_handler(args):
   """Timer callback for redrawing plots with latest data."""
-  global EXIT_GRAPH
-
-  if EXIT_GRAPH:
+  stream_data, runlimits, runflags = args
+  if runflags.exit:
     sys.exit(1)
 
   for line_name in stream_data:
@@ -361,29 +367,29 @@ def plot_refresh_handler(stream_data):
     data['last_len'] = curr_data_len
 
     if FLAGS.with_timestamp:
-      x_data = pylab.array(data['x'])
+      x_data = numpy.array(data['x'])
     else:
-      x_data = pylab.array(range(curr_data_len))
-    y_data = pylab.array(data['y'])
+      x_data = numpy.array(range(curr_data_len))
+    y_data = numpy.array(data['y'])
 
-    LIMITS.x_max = max(max(x_data), LIMITS.x_max)
-    LIMITS.x_min = LIMITS.x_max-FLAGS.width
+    runlimits.x_max = max(max(x_data), runlimits.x_max)
+    runlimits.x_min = runlimits.x_max-FLAGS.width
 
     if FLAGS.ymin is not None:
-      LIMITS.y_min = FLAGS.ymin
+      runlimits.y_min = FLAGS.ymin
     else:
-      LIMITS.y_min = min(min(y_data), LIMITS.y_min)
+      runlimits.y_min = min(min(y_data), runlimits.y_min)
 
     if FLAGS.ymax is not None:
-      LIMITS.y_max = FLAGS.ymax
+      runlimits.y_max = FLAGS.ymax
     else:
-      LIMITS.y_max = max(max(y_data), LIMITS.y_max)
+      runlimits.y_max = max(max(y_data), runlimits.y_max)
 
     data['line'].set_data(x_data, y_data)
-    if UPDATE_AXIS:
+    if runflags.update_axis:
       axes = data['line'].get_axes()
       axes.relim()
-      axes.set_xlim(LIMITS.x_min-1, LIMITS.x_max+1)
+      axes.set_xlim(runlimits.x_min-1, runlimits.x_max+1)
       axes.autoscale_view(scaley=True, scalex=False)
 
   manager = pylab.get_current_fig_manager()
@@ -393,21 +399,22 @@ def initialize_server(server):
   server.serve_forever()
 
 def main():
-  global LIMITS
-  LIMITS = Limits()
+  runlimits = Limits()
+  runflags = Flags()
 
   parse_args()
 
   server = ScoperThreadedTCPServer((FLAGS.hostname, FLAGS.port),
                                    ScoperThreadedClientProbeHandler)
-  server.setup()
+  server.setup(runflags)
 
   server_thread = threading.Thread(target=initialize_server, args=(server,))
   server_thread.setDaemon(True)
   server_thread.start()
 
   # blocks on pylab.show()
-  pylab_setup(server.figure, server.stream_data)
+  pylab_setup(server.figure, server.stream_data, FLAGS.width, runlimits,
+              runflags)
 
   logging.info("Shutdown server")
   server.shutdown()

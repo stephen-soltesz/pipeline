@@ -1,4 +1,35 @@
 #!/usr/bin/env python
+"""
+Summary:
+  scopeprobe.py connects to the scopeview server and sends values to the
+  server for plotting.  The new values are either read from stdin, or returned
+  by a command executed by scopeprobe.
+
+Examples:
+  Start the scopeview.py server, then try one of the following.
+
+  Read new values from STDIN - plots a sin() wave using bc:
+    for i in {0..200}; do \\
+        echo "s($i/(4*3.14))" | bc -l ; done \\
+    | scopeprobe.py
+
+  Read new values from command every 5 seconds:
+    scopeprobe.py --interval 0.1 --command "echo 's({i}/(3.14*4))' | bc -l"
+
+  Re-start the line after every 200 samples:
+    scopeprobe.py --pivot 200 --interval 0.1 --label line \\
+      --command "echo 's({i}/(3.14*4))' | bc -l"
+
+  Create a second axis on the figure:
+    scopeprobe.py --axis newaxis_name --interval 0.1 --label line \\
+      --command "echo 's({i}/(3.14*4))' | bc -l"
+
+  Reset the current display by wiping all data:
+    scopeprobe.py --reset
+
+Usage:
+  scopeprobe.py [flags]
+"""
 
 import errno
 import os
@@ -16,30 +47,41 @@ except ImportError as error:
   sys.exit(1)
 
 
-gflags.DEFINE_string("hostname", None, "Hostname of scoper server.", short_name='h')
-gflags.DEFINE_integer("port", 3131, "TCP port to connect to hostname.", short_name='p')
-gflags.DEFINE_string("label", None, "Send specific label to scoper for this line", short_name='l')
-gflags.DEFINE_string("axis", "default", "Use a specific axis name.", short_name='a')
-gflags.DEFINE_string("axis_ylabel", "Value", "Use a specific axis name.", short_name='y')
-gflags.DEFINE_string("axis_xlabel", "Samples", "Use a specific axis name.", short_name='x')
-gflags.DEFINE_string("color", None, "Send specific color to scoper for this line", short_name='C')
-gflags.DEFINE_string("style", None, "Send specific style hints to scoper", short_name='s')
-gflags.DEFINE_bool("verbose", False, "Print additional status information", short_name='v')
+gflags.DEFINE_string("hostname", "localhost",
+    "Hostname of scoper server.", short_name='h')
+gflags.DEFINE_integer("port", 3131,
+    "TCP port to connect to hostname.", short_name='p')
+gflags.DEFINE_string("label", None,
+    "Send specific label to scoper for this line", short_name='l')
+gflags.DEFINE_string("axis", "default",
+    "Use a specific axis name.", short_name='a')
+gflags.DEFINE_string("axis_ylabel", "Value",
+    "Use a specific axis name.", short_name='y')
+gflags.DEFINE_string("axis_xlabel", "Samples",
+    "Use a specific axis name.", short_name='x')
+gflags.DEFINE_string("color", None,
+    "Send specific color to scoper for this line", short_name='C')
+gflags.DEFINE_string("style", None,
+    "Send specific style hints to scoper", short_name='s')
+gflags.DEFINE_bool("verbose", False,
+    "Print additional status information", short_name='v')
 gflags.DEFINE_string("command", None,
-                     ("Rather than read from stdin, "
-                      "use output from given command."),
-                     short_name='c')
+    "Rather than read from stdin, use output from given command.",
+    short_name='c')
 
-# TODO: need some insight into graph move of timestamps or samples...
+# TODO: need some insight into whether view is in timestamp or sample mode...
 gflags.DEFINE_integer("pivot", None,
     ("Wrap all lines around given pivot point. Use with '--width' to create "
      "a fixed size window for comparing new graphs with long-running graphs."),
     short_name='P')
-gflags.DEFINE_bool("reset", False, "Send 'RESET' command to grapher.", short_name='r')
-gflags.DEFINE_bool("exit", False, "Send 'EXIT' command to grapher.", short_name='e')
-gflags.DEFINE_float("interval", 1, "Delay in milliseconds between running command.",
+gflags.DEFINE_bool("reset", False,
+    "Send 'RESET' command to grapher.", short_name='r')
+gflags.DEFINE_bool("exit", False,
+    "Send 'EXIT' command to grapher.", short_name='e')
+gflags.DEFINE_float("interval", 1,
+    "Delay in milliseconds between running command.",
     lower_bound=0.0, short_name='i')
-gflags.MarkFlagAsRequired('hostname')
+#gflags.MarkFlagAsRequired('hostname')
 
 
 class StreamSocket(object):
@@ -63,6 +105,7 @@ class StreamSocket(object):
     self.wfile = self.sock.makefile('wb', self.wbufsize)
 
   def finish(self):
+    """shutdown connection, flushing buffers and closing sockets."""
     if not self.wfile.closed:
       try:
         self.wfile.flush()
@@ -74,37 +117,13 @@ class StreamSocket(object):
     self.rfile.close()
     self.sock.close()
 
-def usage():
-  return """
-Summary:
-
-  scoper-probe.py connects to the scoper-graph server and sends values to the
-  server for plotting.  The new values are either read from stdin, or returned
-  by a command executed by scoper-probe.
-
-Examples:
-  Start the scoper-graph.py server, then try one of the following.
-
-  Read new values from STDIN - plots a sin() wave using bc:
-  for i in {0..200}; do \\
-      echo "s($i/(4*3.14))" | bc -l ; done \\
-  | scoper-probe.py -h localhost
-
-  Read new values from command every 5 seconds:
-  scoper-probe.py -h localhost  --command "echo 's({i}/(3.14*4))' | bc -l"
-  """
 
 def parse_args():
+  """Parse args using gflags.FLAGS() and set verbose level."""
   try:
     FLAGS(sys.argv)
   except gflags.FlagsError, err:
-    print usage()
     print '%s\nUsage: %s ARGS\n%s' % (err, sys.argv[0], FLAGS)
-    sys.exit(1)
-
-  if len(sys.argv) == 1:
-    print usage()
-    print 'Usage: %s ARGS\n%s' % (sys.argv[0], FLAGS)
     sys.exit(1)
 
   if FLAGS.verbose:
@@ -116,6 +135,7 @@ def parse_args():
 
 
 def connect_to_grapher():
+  """sets up connection to server and sends initial command & style."""
   try:
     client = StreamSocket(FLAGS.hostname, FLAGS.port)
   except socket.error as error:
