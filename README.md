@@ -1,7 +1,7 @@
-Pylabscope View & Probe
+Pipescope View & Probe
 =======================
 
-Pylabscope provides a pair of commands: scopeview and scopeprobe. Together,
+Pipescope provides a pair of commands: scopeview and scopeprobe. Together,
 they make it easy to view streams of data in real time from the command line.
 
 Scopeview combines SocketServer to manage client connections and pylab to plot
@@ -25,7 +25,7 @@ and display data. Multiple scopeprobe clients can connect to a single server.
 Example
 =======
 
-![Pylabscope Example](https://github.com/stephen-soltesz/pylabscope/raw/master/example.png)
+![Pipescope Example](https://github.com/stephen-soltesz/pipescope/raw/master/example.png)
 
 The above example was created using commands like those below.
 
