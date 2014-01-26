@@ -25,13 +25,9 @@ and display data. Multiple scopeprobe clients can connect to a single server.
 Example
 =======
 
-![Example Pylabscope](https://raw.github.com/stephen-soltesz/pylabscope/master/example.png)
-
-![Example Pylabscope2](../blob/master/example.png?raw=true)
-
 ![Example Pylabscope3](https://github.com/stephen-soltesz/pylabscope/raw/master/example.png)
 
-![Example Pylabscope4](https://github.com/stephen-soltesz/pylabscope/raw/master/example.png?raw=true)
+[[example.png]]
 
 The above example was created using commands like those below.
 
