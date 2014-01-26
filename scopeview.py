@@ -75,7 +75,6 @@ gflags.DEFINE_string("hostname", HOST,
 # TODO: 'reset' button
 # TODO: 'zoom' y-axis
 # TODO: do we want to move 'timestamp' handling to probe?
-# TODO: pivot logic is moved to prober -- does this work with time?
 # TODO: export/save current data to text file, or send it to the client?
 #       and, allow something like a 'replay'/redisplay feature?
 
