@@ -32,24 +32,23 @@ Usage:
 """
 
 import errno
+import logging
 import socket
 import subprocess
 import sys
 import time
-import logging
 
-try:
-  import gflags
-  FLAGS = gflags.FLAGS
-except ImportError as error:
-  print "Failed to 'import gflags'"
-  print "Try installing python-gflags package"
-  sys.exit(1)
+# third-party modules
+import gflags
 
 
-gflags.DEFINE_string("hostname", "localhost",
+HOST = "localhost"
+PORT = 3131
+FLAGS = gflags.FLAGS
+
+gflags.DEFINE_string("hostname", HOST,
     "Hostname of scoper server.", short_name='h')
-gflags.DEFINE_integer("port", 3131,
+gflags.DEFINE_integer("port", PORT,
     "TCP port to connect to hostname.", short_name='p')
 gflags.DEFINE_string("label", None,
     "Send specific label to scoper for this line", short_name='l')
@@ -68,7 +67,6 @@ gflags.DEFINE_bool("verbose", False,
 gflags.DEFINE_string("command", None,
     "Rather than read from stdin, use output from given command.",
     short_name='c')
-
 # TODO: need some insight into whether view is in timestamp or sample mode...
 gflags.DEFINE_integer("pivot", None,
     ("Wrap all lines around given pivot point. Use with '--width' to create "
@@ -81,7 +79,6 @@ gflags.DEFINE_bool("exit", False,
 gflags.DEFINE_float("interval", 1,
     "Delay in milliseconds between running command.",
     lower_bound=0.0, short_name='i')
-#gflags.MarkFlagAsRequired('hostname')
 
 
 class StreamSocket(object):
