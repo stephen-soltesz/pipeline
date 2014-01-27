@@ -22,6 +22,14 @@ and display data. Multiple scopeprobe clients can connect to a single server.
 
   See: `scopeprobe.py --helpshort` for more detailed usage notes.
 
+Install
+=======
+
+Pipescope has two dependencies on third-party modules:
+
+ * [matplotlib][http://www.matplotlib.org/]
+ * [gflags][https://code.google.com/p/python-gflags/]
+
 Example
 =======
 
