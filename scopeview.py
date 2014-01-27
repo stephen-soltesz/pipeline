@@ -33,7 +33,6 @@ Usage:
   scopeview.py [flags]
 """
 
-from datetime import datetime
 import gflags
 import logging
 import matplotlib
@@ -95,7 +94,7 @@ def parse_args():
 
 def timestamp():
   """return a string timestamp in YYYY-MM-DDTHH:MM:SS form."""
-  return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+  return time.strftime("%Y-%m-%dT%H:%M:%S")
 
 
 def get_threadname():
