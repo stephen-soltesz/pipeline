@@ -33,25 +33,27 @@ Usage:
   scopeview.py [flags]
 """
 
-import gflags
 import logging
+import SocketServer
+import sys
+import threading
+import time
+
+# third-party modules
+import gflags
 import matplotlib
 # set pylab backend *before* importing pylab
 #matplotlib.use("tkagg")
 matplotlib.use("webagg")  # displays in browser, can be viewed by others.
 import numpy
 import pylab
-import SocketServer
-import sys
-import threading
-import time
 
 
 DEFAULT_WIDTH = 200
 HOST = "localhost"
 PORT = 3131
-
 FLAGS = gflags.FLAGS
+
 gflags.DEFINE_integer("width", DEFAULT_WIDTH,
     "Default number of samples to show in plot.",
     short_name='w')
@@ -76,7 +78,6 @@ gflags.DEFINE_string("hostname", HOST,
 # TODO: do we want to move 'timestamp' handling to probe?
 # TODO: export/save current data to text file, or send it to the client?
 #       and, allow something like a 'replay'/redisplay feature?
-
 
 
 def parse_args():
