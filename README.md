@@ -27,8 +27,10 @@ Install
 
 Pipescope has two dependencies on third-party modules:
 
- * [matplotlib][http://www.matplotlib.org/]
- * [gflags][https://code.google.com/p/python-gflags/]
+ * [matplotlib](http://www.matplotlib.org/)
+  - packaged as python-matplotlib or py-matplotlib or similar.
+ * [gflags](https://code.google.com/p/python-gflags/)
+  - packaged as python-gflags or py-gflags or similar.
 
 Example
 =======
