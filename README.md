@@ -1,7 +1,7 @@
-Pipescope View & Probe
+Pipeline View & Probe
 =======================
 
-Pipescope provides a pair of commands: scopeview and scopeprobe. Together,
+Pipeline provides a pair of commands: scopeview and scopeprobe. Together,
 they make it easy to view streams of data in real time from the command line.
 
 Scopeview combines SocketServer to manage client connections and pylab to plot
@@ -25,7 +25,7 @@ and display data. Multiple scopeprobe clients can connect to a single server.
 Install
 =======
 
-Pipescope has two dependencies on third-party modules:
+Pipeline has two dependencies on third-party modules:
 
  * [matplotlib](http://www.matplotlib.org/)
   - packaged as python-matplotlib or py-matplotlib or similar.
@@ -35,7 +35,7 @@ Pipescope has two dependencies on third-party modules:
 Example
 =======
 
-![Pipescope Example](https://github.com/stephen-soltesz/pipescope/raw/master/example.png)
+![Pipeline Example](https://github.com/stephen-soltesz/pipeline/raw/master/example.png)
 
 The above example was created using commands like those below.
 
