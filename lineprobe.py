@@ -1,34 +1,34 @@
 #!/usr/bin/env python
 """
 Summary:
-  scopeprobe.py connects to the scopeview server and sends values to the
+  lineprobe.py connects to the lineview server and sends values to the
   server for plotting.  The new values are either read from stdin, or returned
-  by a command executed by scopeprobe.
+  by a command executed by lineprobe.
 
 Examples:
-  Start the scopeview.py server, then try one of the following.
+  Start the lineview.py server, then try one of the following.
 
   Read new values from STDIN - plots a sin() wave using bc:
     for i in {0..200}; do \\
         echo "s($i/(4*3.14))" | bc -l ; done \\
-    | scopeprobe.py
+    | lineprobe.py
 
   Read new values from command every 5 seconds:
-    scopeprobe.py --interval 0.1 --command "echo 's({i}/(3.14*4))' | bc -l"
+    lineprobe.py --interval 0.1 --command "echo 's({i}/(3.14*4))' | bc -l"
 
   Re-start the line after every 200 samples:
-    scopeprobe.py --pivot 200 --interval 0.1 --label line \\
+    lineprobe.py --pivot 200 --interval 0.1 --label line \\
       --command "echo 's({i}/(3.14*4))' | bc -l"
 
   Create a second axis on the figure:
-    scopeprobe.py --axis newaxis_name --interval 0.1 --label line \\
+    lineprobe.py --axis newaxis_name --interval 0.1 --label line \\
       --command "echo 's({i}/(3.14*4))' | bc -l"
 
   Reset the current display by wiping all data:
-    scopeprobe.py --reset
+    lineprobe.py --reset
 
 Usage:
-  scopeprobe.py [flags]
+  lineprobe.py [flags]
 """
 
 import errno
@@ -47,11 +47,11 @@ PORT = 3131
 FLAGS = gflags.FLAGS
 
 gflags.DEFINE_string("hostname", HOST,
-    "Hostname of scoper server.", short_name='h')
+    "Hostname of lineview server.", short_name='h')
 gflags.DEFINE_integer("port", PORT,
     "TCP port to connect to hostname.", short_name='p')
 gflags.DEFINE_string("label", None,
-    "Send specific label to scoper for this line", short_name='l')
+    "Send specific label to lineview for this line", short_name='l')
 gflags.DEFINE_string("axis", "default",
     "Use a specific axis name.", short_name='a')
 gflags.DEFINE_string("axis_ylabel", "Value",
@@ -59,9 +59,9 @@ gflags.DEFINE_string("axis_ylabel", "Value",
 gflags.DEFINE_string("axis_xlabel", "Samples",
     "Use a specific axis name.", short_name='x')
 gflags.DEFINE_string("color", None,
-    "Send specific color to scoper for this line", short_name='C')
+    "Send specific color to lineview for this line", short_name='C')
 gflags.DEFINE_string("style", None,
-    "Send specific style hints to scoper", short_name='s')
+    "Send specific style hints to lineview", short_name='s')
 gflags.DEFINE_bool("verbose", False,
     "Print additional status information", short_name='v')
 gflags.DEFINE_string("command", None,

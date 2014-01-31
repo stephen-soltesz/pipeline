@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 """
 Summary:
-  scopeview.py is a simple server that accepts client connections and plots
+  lineview.py is a simple server that accepts client connections and plots
   client data in real time using pylab for display.
   
-  By default, each scopeprobe client creates a separate line.
+  By default, each lineprobe client creates a separate line.
 
   The client protocol is simple and documented in the protocol spec. The
   simplest client would connect to the server and write strings:
@@ -14,23 +14,23 @@ Summary:
   Where float1 and float2 are strings that will convert using float().
 
 Usage - default:
-  Start scopeview.py with no arguments for default options.
+  Start lineview.py with no arguments for default options.
 
 Usage - plot with timestamps:
   By default, the sequence order of values received by the server defines a
   value's x-coordinate. With the --timestamp option, the server associates a
   timestamp with each received value. The timestamp serves as the x-coordinate.
 
-    ./scopeview.py --timestamp
+    ./lineview.py --timestamp
 
 Usage - multiple axes:
   By default a single axis is used for all lines.  You may specify multiple
-  additional axes with the '--axis <name>' option to scopeprobe.py:
+  additional axes with the '--axis <name>' option to lineprobe.py:
 
-    ./scopeprobe.py --axix <name> [args]
+    ./lineprobe.py --axix <name> [args]
 
 Usage:
-  scopeview.py [flags]
+  lineview.py [flags]
 """
 
 import logging
@@ -119,7 +119,7 @@ def find_uniq_preserve_order(orig_keys, orig_values=None):
   return keys, values
 
 
-class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
+class PipelineThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
   """Client handler to receive data for display."""
 
   def _handle_reset(self):
@@ -235,7 +235,7 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
       axes_dict[axis_name].grid(True)
       axes_dict[axis_name].set_xlabel(axis_args['x_label'])
       axes_dict[axis_name].set_ylabel(axis_args['y_label'])
-      # TODO: support *.set_title("Scoper")
+      # TODO: support *.set_title("Title")
       if FLAGS.logy:
         axes_dict[axis_name].set_yscale('log', nonposy='clip')
 
@@ -276,7 +276,7 @@ class ScoperThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
     print "Exiting:", thread_name
 
 
-class ScoperThreadedTCPServer(SocketServer.ThreadingMixIn,
+class PipelineThreadedTCPServer(SocketServer.ThreadingMixIn,
                               SocketServer.TCPServer):
   """Custom TCP Server with daemon threads and allow_reuse_address enabled."""
   # let ctrl-c to main thread cleans up all threads.
@@ -413,8 +413,8 @@ def main():
 
   parse_args()
 
-  server = ScoperThreadedTCPServer((FLAGS.hostname, FLAGS.port),
-                                   ScoperThreadedClientProbeHandler)
+  server = PipelineThreadedTCPServer((FLAGS.hostname, FLAGS.port),
+                                     PipelineThreadedClientProbeHandler)
   server.setup(runflags)
 
   server_thread = threading.Thread(target=initialize_server, args=(server,))
