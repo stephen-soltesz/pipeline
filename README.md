@@ -35,7 +35,7 @@ Pipeline has two dependencies on third-party modules:
 Example
 =======
 
-![Pipeline Example](https://github.com/stephen-soltesz/pipeline/raw/master/example.png)
+![Pipeline Example](https://github.com/stephen-soltesz/pipeline/raw/master/screenshots/example.png)
 
 The above example was created using commands like those below.
 
