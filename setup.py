@@ -12,7 +12,7 @@ setup(name='PyPipeline',
       license='Apache License Version 2',
 
       install_requires=[
-        'gflags >= 1.0',
+        'python-gflags >= 1.0',
         'matplotlib >= 1.3',
         'mock >= 1.0',
       ],
