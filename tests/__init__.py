@@ -3,12 +3,14 @@
 import mock
 import unittest
 
-class Pipeline(unittest.TestCase):                                                  
-  def testCheck(self):
-    m = mock.Mock()
-    m.return_value = 10
+class Pipeline(unittest.TestCase):
+  """Test class for pipeline server."""
 
-    ret = m()
+  def testCheck(self):
+    m_test = mock.Mock()
+    m_test.return_value = 10
+
+    ret = m_test()
 
     self.assertEqual(ret, 10)
 
