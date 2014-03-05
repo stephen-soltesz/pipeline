@@ -3,7 +3,7 @@
 Summary:
   lineview.py is a simple server that accepts client connections and plots
   client data in real time using pylab for display.
-  
+
   By default, each lineprobe client creates a separate line.
 
   The client protocol is simple and documented in the protocol spec. The
@@ -166,30 +166,36 @@ class PipelineThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
       stream_data[line_name]['x'] = []
     return line_name
 
-  def _handle_client_read_data(self, line_name):
+  def _append_value(self, stream, value):
+    """Saves value to data stream."""
+    if FLAGS.timestamp:
+      x_val = float(time.time())
+      stream['x'].append(x_val)
+
+    y_val = float(value)
+    stream['y'].append(y_val)
+
+  def _handle_client_read_data(self, first_value, line_name):
     """Loops reading client data and appending it to stream_data."""
     stream_data = self.server.stream_data
+    self._append_value(stream_data[line_name], first_value)
     while True:
       data = self.rfile.readline().strip()
+      # TODO: add verbose logging
+      #print "value", data
       if data == "":
         break
 
       # TODO: add verbose logging options
       #print "[%s-%s] %s: %s" % (thread_name, self.client_address[0],
       #    timestamp(), float(data))
-
-      if FLAGS.timestamp:
-        x_val = float(time.time())
-        stream_data[line_name]['x'].append(x_val)
-
-      y_val = float(data)
-      stream_data[line_name]['y'].append(y_val)
-      #self.wfile.write(".\n")
+      self._append_value(stream_data[line_name], data)
 
   def _handle_client_init(self, style_args, axis_args):
     """Read client initialization: axes, style, or reset commands."""
     while True:
       data = self.rfile.readline().strip()
+      print "cfg", data
       if data == "":
         return
 
@@ -212,8 +218,15 @@ class PipelineThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
         axis_args['y_label'] = y_label
         continue
 
-      if "BEGIN" in fields:
-        break
+      try:
+        value = float(fields[0])
+        return value
+      except ValueError:
+        # NOTE: To allow very simple clients, there is no explicit signal that
+        # configuration is complte.  Configuration-complete is infered by a
+        # value converting successfully to float. In all other cases, continue
+        # the configuration loop.
+        pass
 
       try:
         style_args[fields[0]] = float(fields[1])
@@ -259,10 +272,14 @@ class PipelineThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
     axis_args['y_label'] = ''
 
     # client_init blocks until client sends 'BEGIN'
-    status = self._handle_client_init(style_args, axis_args)
-    if status == "RETURN":
-      # done with client
-      return
+    first_value = self._handle_client_init(style_args, axis_args)
+    if type(first_value) != float:
+      if first_value == "RETURN":
+        # done with client
+        return
+      else:
+        print "Unknown status"
+        return
 
     self._handle_setup_axis(axis_args)
 
@@ -272,7 +289,7 @@ class PipelineThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
     self._handle_update_legend(axes)
 
     # NOTE: client_read_data will block until client disconnects.
-    self._handle_client_read_data(line_name)
+    self._handle_client_read_data(first_value, line_name)
     print "Exiting:", thread_name
 
 
