@@ -158,7 +158,6 @@ def connect_to_grapher():
     client.wfile.write("label:%s\n" % FLAGS.label)
   if FLAGS.style:
     client.wfile.write("%s\n" % FLAGS.style.replace(',', '\n'))
-  client.wfile.write("BEGIN\n")
   return client
 
 
@@ -174,8 +173,8 @@ def main():
 
     if FLAGS.command:
       cmd = FLAGS.command.format(i=count)
-      (value,_) = subprocess.Popen(cmd, shell=True,
-                                   stdout=subprocess.PIPE).communicate()
+      (value, _) = subprocess.Popen(cmd, shell=True,
+                                    stdout=subprocess.PIPE).communicate()
       client.wfile.write(value)
       logging.debug("Send to %s:%s '%s'", FLAGS.hostname,
                     FLAGS.port, value.strip())
