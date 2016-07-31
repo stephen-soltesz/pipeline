@@ -38,18 +38,14 @@ import subprocess
 import sys
 import time
 
+import pipeline
+
 # third-party modules
 import gflags
 
 
-HOST = "localhost"
-PORT = 3131
 FLAGS = gflags.FLAGS
 
-gflags.DEFINE_string("hostname", HOST,
-    "Hostname of lineview server.", short_name='h')
-gflags.DEFINE_integer("port", PORT,
-    "TCP port to connect to hostname.", short_name='p')
 gflags.DEFINE_string("label", None,
     "Send specific label to lineview for this line", short_name='l')
 gflags.DEFINE_string("axis", "default",
@@ -81,40 +77,6 @@ gflags.DEFINE_float("interval", 1,
     lower_bound=0.0, short_name='i')
 
 
-class StreamSocket(object):
-  """Wrap a socket with stream for client connections"""
-
-  rbufsize = -1  # buffered
-  wbufsize = 0  # unbuffered
-
-  # A timeout to apply to the request socket, if not None.
-  timeout = None  # disabled .. block indefinitely on read/write
-
-  def __init__(self, hostname, port):
-    ip_addr = socket.gethostbyname(hostname)
-    self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    self.sock.connect((ip_addr, port))
-
-    if self.timeout is not None:
-      self.sock.settimeout(self.timeout)
-
-    self.rfile = self.sock.makefile('rb', self.rbufsize)
-    self.wfile = self.sock.makefile('wb', self.wbufsize)
-
-  def finish(self):
-    """shutdown connection, flushing buffers and closing sockets."""
-    if not self.wfile.closed:
-      try:
-        self.wfile.flush()
-      except socket.error:
-        # An final socket error may have occurred here, such as
-        # the local error ECONNABORTED.
-        pass
-    self.wfile.close()
-    self.rfile.close()
-    self.sock.close()
-
-
 def parse_args():
   """Parse args using gflags.FLAGS() and set verbose level."""
   try:
@@ -131,17 +93,25 @@ def parse_args():
                       level=log_level)
 
 
-def connect_to_grapher():
+def handle_streamsocket_error(error):
+  print error
+  if error.errno == errno.ECONNREFUSED:
+    print "Is the server running at (%s,%s)?" % (FLAGS.hostname, FLAGS.port)
+    print "To see usage information use:"
+    print "  %s --helpshort" % sys.argv[0]
+  # raise last exception
+  raise
+
+
+def connect_to_grapher(streamsocket=None):
   """sets up connection to server and sends initial command & style."""
-  try:
-    client = StreamSocket(FLAGS.hostname, FLAGS.port)
-  except socket.error as error:
-    print error
-    if error.errno == errno.ECONNREFUSED:
-      print "Is the server running at (%s,%s)?" % (FLAGS.hostname, FLAGS.port)
-      print "To see usage information use:"
-      print "  %s --helpshort" % sys.argv[0]
-    sys.exit(1)
+  if streamsocket is None:
+    try:
+      client = pipeline.StreamSocket(FLAGS.hostname, FLAGS.port)
+    except socket.error as error:
+      handle_streamsocket_error(error)
+  else:
+    client = streamsocket
 
   if FLAGS.reset:
     client.wfile.write("RESET\n")

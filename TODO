@@ -1,0 +1,10 @@
+server:
+  log data to csv
+  load history (logged CSVs)
+  ymin, ymax
+
+probe:
+  or log could be a separate command.
+  each line is logged separately.
+
+

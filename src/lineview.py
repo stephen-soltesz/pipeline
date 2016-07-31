@@ -39,6 +39,8 @@ import sys
 import threading
 import time
 
+import pipeline
+
 # third-party modules
 import gflags
 import matplotlib
@@ -50,8 +52,6 @@ import pylab
 
 
 DEFAULT_WIDTH = 200
-HOST = "localhost"
-PORT = 3131
 FLAGS = gflags.FLAGS
 
 gflags.DEFINE_integer("width", DEFAULT_WIDTH,
@@ -61,16 +61,11 @@ gflags.DEFINE_bool("timestamp", False,
     "Plot points with current timestamp on x-axis.",
     short_name='t')
 gflags.DEFINE_bool("logy", False,
-    "Plot the y-axis on the log scale.",
-    short_name='l')
+    "Plot the y-axis on the log scale.")
 gflags.DEFINE_integer("ymin", None,
     "Plot the y-axis on the log scale.")
 gflags.DEFINE_integer("ymax", None,
     "Plot the y-axis on the log scale.")
-gflags.DEFINE_integer("port", PORT,
-    "Default port to listen.", short_name='p')
-gflags.DEFINE_string("hostname", HOST,
-    "Default port to listen.", short_name='h')
 
 # TODO: add verbose logging options
 # TODO: 'reset' button
@@ -294,7 +289,7 @@ class PipelineThreadedClientProbeHandler(SocketServer.StreamRequestHandler):
 
 
 class PipelineThreadedTCPServer(SocketServer.ThreadingMixIn,
-                              SocketServer.TCPServer):
+                                SocketServer.TCPServer):
   """Custom TCP Server with daemon threads and allow_reuse_address enabled."""
   # let ctrl-c to main thread cleans up all threads.
   daemon_threads = True
